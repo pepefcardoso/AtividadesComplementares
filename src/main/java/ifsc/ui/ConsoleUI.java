@@ -1,5 +1,9 @@
 package ifsc.ui;
 
+import java.util.InputMismatchException;
+import java.util.List;
+import java.util.Scanner;
+
 import ifsc.factory.ModalidadeFactory;
 import ifsc.model.AtividadeComplementar;
 import ifsc.model.AtividadeRequerida;
@@ -9,18 +13,13 @@ import ifsc.service.AvaliacaoService;
 import ifsc.service.Parecer;
 import ifsc.service.RevisaoService;
 
-import java.util.InputMismatchException;
-import java.util.List;
-import java.util.Scanner;
-
 public class ConsoleUI {
 
-    private Scanner scanner;
+    private final Scanner scanner;
     private Requerimento requerimento;
-    private AvaliacaoService avaliacaoService;
-    private Parecer geradorParecer;
-    private RevisaoService revisaoService;
-
+    private final AvaliacaoService avaliacaoService;
+    private final Parecer geradorParecer;
+    private final RevisaoService revisaoService;
 
     public ConsoleUI() {
         this.scanner = new Scanner(System.in);
@@ -33,21 +32,21 @@ public class ConsoleUI {
         System.out.println("======================================================");
         System.out.println("  SISTEMA DE AVALIAÇÃO DE ATIVIDADES COMPLEMENTARES");
         System.out.println("======================================================");
-    
+
         String matricula;
-    
+
         do {
             System.out.print("Informe a matrícula do aluno: ");
             matricula = scanner.nextLine();
-    
+
             if (matricula.trim().isEmpty()) {
                 System.out.println("ERRO: A matrícula não pode estar em branco. Por favor, tente novamente.");
             }
-    
+
         } while (matricula.trim().isEmpty());
-    
+
         this.requerimento = new Requerimento(matricula);
-    
+
         loopPrincipal();
         fecharRecursos();
     }
@@ -66,7 +65,8 @@ public class ConsoleUI {
                     processarModalidade(escolha);
                     break;
                 case 0:
-                    iniciarProcessoDeRevisao();
+                    revisaoService.iniciarRevisaoInterativa(this.requerimento, this.scanner);
+                    finalizarEGerarParecer();
                     executando = false;
                     break;
                 default:
@@ -144,59 +144,10 @@ public class ConsoleUI {
         }
     }
 
-    private void iniciarProcessoDeRevisao() {
-        System.out.println("\n======================================================");
-        System.out.println("            INICIANDO MODO DE AVALIAÇÃO");
-        System.out.println("======================================================");
-
-        List<AtividadeRequerida> atividades = requerimento.getAtividadesSubmetidas();
-
-        if (atividades.isEmpty()) {
-            System.out.println("Nenhuma atividade foi submetida. Nenhum parecer a ser gerado.");
+    private void finalizarEGerarParecer() {
+        if (requerimento.getAtividadesSubmetidas().isEmpty()) {
             return;
         }
-
-        for (int i = 0; i < atividades.size(); i++) {
-            AtividadeRequerida atividadeAtual = atividades.get(i);
-            avaliarAtividadeIndividualmente(atividadeAtual, i + 1);
-        }
-
-        System.out.println("\nRevisão de todas as atividades concluída.");
-        finalizarEGerarParecer();
-    }
-    
-    private void avaliarAtividadeIndividualmente(AtividadeRequerida atividade, int numeroAtividade) {
-        System.out.printf("\n--- Avaliando Atividade %d ---\n", numeroAtividade);
-        System.out.printf("  Descrição:        %s\n", atividade.getAtividadeComplementar().getDescricao());
-        System.out.printf("  Valor Declarado:    %d (%s)\n", atividade.getHorasDeclaradas(), atividade.getAtividadeComplementar().getEstrategiaValidacao().getDescricaoRegra());
-        System.out.printf("  Validação Automática: %dh\n", atividade.getHorasValidadas());
-        System.out.printf("  Observação Automática: %s\n", atividade.getObservacao());
-        System.out.println("---------------------------------");
-        
-        System.out.println("Escolha uma ação:");
-        System.out.println("  1) Manter valor da validação automática");
-        System.out.println("  2) Alterar horas (aprovação parcial)");
-        System.out.println("  3) Recusar atividade (zerar horas)");
-        System.out.print("Sua opção: ");
-
-        int escolha = lerOpcao();
-        int novasHoras = 0;
-        String novaObservacao = "";
-
-        if (escolha == 2) {
-            System.out.print("Informe as novas horas validadas: ");
-            novasHoras = lerOpcao();
-            System.out.print("Informe a justificativa da alteração: ");
-            novaObservacao = scanner.nextLine();
-        } else if (escolha == 3) {
-             System.out.print("Informe o motivo da recusa: ");
-             novaObservacao = scanner.nextLine();
-        }
-        
-        revisaoService.revisar(atividade, novasHoras, novaObservacao, escolha);
-    }
-    
-    private void finalizarEGerarParecer() {
         System.out.println("\nGerando parecer final...");
         String parecer = geradorParecer.gerar(this.requerimento);
         System.out.println("------------------------------------------------------");
