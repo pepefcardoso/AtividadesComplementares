@@ -1,16 +1,21 @@
 package ifsc.service;
 
-import java.util.InputMismatchException;
 import java.util.List;
-import java.util.Scanner;
 
 import ifsc.model.AtividadeRequerida;
 import ifsc.model.Requerimento;
 import ifsc.model.TipoRevisao;
+import ifsc.ui.RevisaoUI;
 
 public class RevisaoService {
 
-    public void iniciarRevisaoInterativa(Requerimento requerimento, Scanner scanner) {
+    private final RevisaoUI revisaoUI;
+
+    public RevisaoService(RevisaoUI revisaoUI) {
+        this.revisaoUI = revisaoUI;
+    }
+
+    public void iniciarRevisaoInterativa(Requerimento requerimento) {
         System.out.println("\n======================================================");
         System.out.println("            INICIANDO MODO DE AVALIAÇÃO");
         System.out.println("======================================================");
@@ -24,40 +29,25 @@ public class RevisaoService {
 
         for (int i = 0; i < atividades.size(); i++) {
             AtividadeRequerida atividadeAtual = atividades.get(i);
-            avaliarAtividadeIndividualmente(atividadeAtual, i + 1, scanner);
+            avaliarAtividadeIndividualmente(atividadeAtual, i + 1);
         }
 
         System.out.println("\nRevisão de todas as atividades concluída.");
     }
 
-    private void avaliarAtividadeIndividualmente(AtividadeRequerida atividade, int numeroAtividade, Scanner scanner) {
-        System.out.printf("\n--- Avaliando Atividade %d ---\n", numeroAtividade);
-        System.out.printf("  Descrição:        %s\n", atividade.getAtividadeComplementar().getDescricao());
-        System.out.printf("  Valor Declarado:    %d (%s)\n", atividade.getHorasDeclaradas(), atividade.getAtividadeComplementar().getEstrategiaValidacao().getDescricaoRegra());
-        System.out.printf("  Validação Automática: %dh\n", atividade.getHorasValidadas());
-        System.out.printf("  Observação Automática: %s\n", atividade.getObservacao());
-        System.out.println("---------------------------------");
+    private void avaliarAtividadeIndividualmente(AtividadeRequerida atividade, int numeroAtividade) {
+        revisaoUI.exibirDetalhesAtividade(atividade, numeroAtividade);
 
-        System.out.println("Escolha uma ação:");
-        System.out.println("  1) Manter valor da validação automática");
-        System.out.println("  2) Alterar horas (aprovação parcial)");
-        System.out.println("  3) Recusar atividade (zerar horas)");
-        System.out.print("Sua opção: ");
-
-        int escolhaInt = lerOpcao(scanner);
-        TipoRevisao escolha = TipoRevisao.fromValor(escolhaInt);
+        TipoRevisao escolha = revisaoUI.perguntarAcaoRevisao();
 
         int novasHoras = 0;
         String novaObservacao = "";
 
         if (escolha == TipoRevisao.ALTERAR_HORAS) {
-            System.out.print("Informe as novas horas validadas: ");
-            novasHoras = lerOpcao(scanner);
-            System.out.print("Informe a justificativa da alteração: ");
-            novaObservacao = scanner.nextLine();
+            novasHoras = revisaoUI.perguntarNovasHoras();
+            novaObservacao = revisaoUI.perguntarJustificativa("justificativa da alteração");
         } else if (escolha == TipoRevisao.RECUSAR_ATIVIDADE) {
-            System.out.print("Informe o motivo da recusa: ");
-            novaObservacao = scanner.nextLine();
+            novaObservacao = revisaoUI.perguntarJustificativa("motivo da recusa");
         }
 
         this.revisar(atividade, novasHoras, novaObservacao, escolha);
@@ -79,18 +69,6 @@ public class RevisaoService {
             default:
                 System.out.println("-> Valor original mantido.");
                 break;
-        }
-    }
-
-    private int lerOpcao(Scanner scanner) {
-        try {
-            int opcao = scanner.nextInt();
-            scanner.nextLine();
-            return opcao;
-        } catch (InputMismatchException e) {
-            System.out.println("Entrada inválida. Por favor, digite um número.");
-            scanner.nextLine();
-            return -1;
         }
     }
 }

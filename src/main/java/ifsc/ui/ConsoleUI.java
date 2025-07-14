@@ -9,11 +9,12 @@ import ifsc.model.AtividadeComplementar;
 import ifsc.model.AtividadeRequerida;
 import ifsc.model.Modalidade;
 import ifsc.model.Requerimento;
+import ifsc.model.TipoRevisao;
 import ifsc.service.AvaliacaoService;
 import ifsc.service.Parecer;
 import ifsc.service.RevisaoService;
 
-public class ConsoleUI {
+public class ConsoleUI implements RevisaoUI {
 
     private final Scanner scanner;
     private Requerimento requerimento;
@@ -25,7 +26,7 @@ public class ConsoleUI {
         this.scanner = new Scanner(System.in);
         this.avaliacaoService = new AvaliacaoService();
         this.geradorParecer = new Parecer();
-        this.revisaoService = new RevisaoService();
+        this.revisaoService = new RevisaoService(this);
     }
 
     public void iniciar() {
@@ -65,7 +66,7 @@ public class ConsoleUI {
                     processarModalidade(escolha);
                     break;
                 case 0:
-                    revisaoService.iniciarRevisaoInterativa(this.requerimento, this.scanner);
+                    revisaoService.iniciarRevisaoInterativa(this.requerimento);
                     finalizarEGerarParecer();
                     executando = false;
                     break;
@@ -73,6 +74,39 @@ public class ConsoleUI {
                     System.out.println("Opção inválida. Tente novamente.");
             }
         }
+    }
+
+    @Override
+    public void exibirDetalhesAtividade(AtividadeRequerida atividade, int numero) {
+        System.out.printf("\n--- Avaliando Atividade %d ---\n", numero);
+        System.out.printf("  Descrição:        %s\n", atividade.getAtividadeComplementar().getDescricao());
+        System.out.printf("  Valor Declarado:    %d (%s)\n", atividade.getHorasDeclaradas(), atividade.getAtividadeComplementar().getEstrategiaValidacao().getDescricaoRegra());
+        System.out.printf("  Validação Automática: %dh\n", atividade.getHorasValidadas());
+        System.out.printf("  Observação Automática: %s\n", atividade.getObservacao());
+        System.out.println("---------------------------------");
+    }
+
+    @Override
+    public TipoRevisao perguntarAcaoRevisao() {
+        System.out.println("Escolha uma ação:");
+        System.out.println("  1) Manter valor da validação automática");
+        System.out.println("  2) Alterar horas (aprovação parcial)");
+        System.out.println("  3) Recusar atividade (zerar horas)");
+        System.out.print("Sua opção: ");
+        int escolhaInt = lerOpcao();
+        return TipoRevisao.fromValor(escolhaInt);
+    }
+
+    @Override
+    public int perguntarNovasHoras() {
+        System.out.print("Informe as novas horas validadas: ");
+        return lerOpcao();
+    }
+
+    @Override
+    public String perguntarJustificativa(String motivo) {
+        System.out.printf("Informe a %s: ", motivo);
+        return scanner.nextLine();
     }
 
     private void exibirMenuPrincipal() {
