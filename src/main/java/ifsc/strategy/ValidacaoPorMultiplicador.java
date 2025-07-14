@@ -3,7 +3,7 @@ package ifsc.strategy;
 public class ValidacaoPorMultiplicador implements Validacao {
 
     private final int horasPorUnidade;
-    private final String nomeDaUnidade; // Ex: "mês", "semestre"
+    private final String nomeDaUnidade;
 
     public ValidacaoPorMultiplicador(int horasPorUnidade, String nomeDaUnidade) {
         this.horasPorUnidade = horasPorUnidade;
