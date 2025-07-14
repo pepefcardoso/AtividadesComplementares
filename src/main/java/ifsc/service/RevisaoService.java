@@ -6,6 +6,7 @@ import java.util.Scanner;
 
 import ifsc.model.AtividadeRequerida;
 import ifsc.model.Requerimento;
+import ifsc.model.TipoRevisao;
 
 public class RevisaoService {
 
@@ -43,16 +44,18 @@ public class RevisaoService {
         System.out.println("  3) Recusar atividade (zerar horas)");
         System.out.print("Sua opção: ");
 
-        int escolha = lerOpcao(scanner);
+        int escolhaInt = lerOpcao(scanner);
+        TipoRevisao escolha = TipoRevisao.fromValor(escolhaInt);
+
         int novasHoras = 0;
         String novaObservacao = "";
 
-        if (escolha == 2) {
+        if (escolha == TipoRevisao.ALTERAR_HORAS) {
             System.out.print("Informe as novas horas validadas: ");
             novasHoras = lerOpcao(scanner);
             System.out.print("Informe a justificativa da alteração: ");
             novaObservacao = scanner.nextLine();
-        } else if (escolha == 3) {
+        } else if (escolha == TipoRevisao.RECUSAR_ATIVIDADE) {
             System.out.print("Informe o motivo da recusa: ");
             novaObservacao = scanner.nextLine();
         }
@@ -60,19 +63,20 @@ public class RevisaoService {
         this.revisar(atividade, novasHoras, novaObservacao, escolha);
     }
 
-    private void revisar(AtividadeRequerida atividade, int novasHoras, String novaObservacao, int tipoRevisao) {
-        switch (tipoRevisao) {
-            case 2: // Aprovar parcialmente
+    private void revisar(AtividadeRequerida atividade, int novasHoras, String novaObservacao, TipoRevisao tipo) {
+        switch (tipo) {
+            case ALTERAR_HORAS:
                 atividade.setHorasValidadas(novasHoras);
                 atividade.setObservacao("Ajuste manual do avaliador: " + novaObservacao);
                 System.out.println("-> Horas alteradas com sucesso.");
                 break;
-            case 3: // Recusar
+            case RECUSAR_ATIVIDADE:
                 atividade.setHorasValidadas(0);
                 atividade.setObservacao("Recusado pelo avaliador: " + novaObservacao);
                 System.out.println("-> Atividade recusada com sucesso.");
                 break;
-            default: // Aprovar ou caso inválido
+            case MANTER_VALIDACAO:
+            default:
                 System.out.println("-> Valor original mantido.");
                 break;
         }
