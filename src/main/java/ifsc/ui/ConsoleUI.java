@@ -7,6 +7,7 @@ import ifsc.model.Modalidade;
 import ifsc.model.Requerimento;
 import ifsc.service.AvaliacaoService;
 import ifsc.service.Parecer;
+import ifsc.service.RevisaoService;
 
 import java.util.InputMismatchException;
 import java.util.List;
@@ -18,11 +19,14 @@ public class ConsoleUI {
     private Requerimento requerimento;
     private AvaliacaoService avaliacaoService;
     private Parecer geradorParecer;
+    private RevisaoService revisaoService;
+
 
     public ConsoleUI() {
         this.scanner = new Scanner(System.in);
         this.avaliacaoService = new AvaliacaoService();
         this.geradorParecer = new Parecer();
+        this.revisaoService = new RevisaoService();
     }
 
     public void iniciar() {
@@ -62,7 +66,7 @@ public class ConsoleUI {
                     processarModalidade(escolha);
                     break;
                 case 0:
-                    finalizarEGerarParecer();
+                    iniciarProcessoDeRevisao();
                     executando = false;
                     break;
                 default:
@@ -77,7 +81,7 @@ public class ConsoleUI {
         System.out.println("2) Pesquisa e Inovação");
         System.out.println("3) Extensão");
         System.out.println("4) Complementação");
-        System.out.println("0) Finalizar e emitir parecer");
+        System.out.println("0) Finalizar e iniciar avaliação");
         System.out.print("Escolha a modalidade (0-finalizar): ");
     }
 
@@ -93,7 +97,7 @@ public class ConsoleUI {
             int escolhaAtividade = lerOpcao();
 
             if (escolhaAtividade == 0) {
-                break; // Volta ao menu principal
+                break;
             }
 
             List<AtividadeComplementar> atividades = modalidade.getAtividadesDisponiveis();
@@ -110,17 +114,13 @@ public class ConsoleUI {
         System.out.printf("\n-- Atividades em %s --\n", modalidade.getNome());
         List<AtividadeComplementar> atividades = modalidade.getAtividadesDisponiveis();
 
-        // Versão segura - Verifica se a estratégia existe antes de usá-la.
         for (int i = 0; i < atividades.size(); i++) {
             AtividadeComplementar atividade = atividades.get(i);
-            // Pega a descrição da regra para informar o aluno sobre o que digitar
             String regra;
 
             if (atividade.getEstrategiaValidacao() != null) {
                 regra = atividade.getEstrategiaValidacao().getDescricaoRegra();
             } else {
-                // Se, por algum motivo, a estratégia for nula, o programa não quebra.
-                // Ele avisa sobre o problema e continua.
                 regra = "ERRO: Regra não definida!";
                 System.out.printf("ALERTA DE DESENVOLVEDOR: A atividade '%s' está sem estratégia de validação!\n", atividade.getDescricao());
             }
@@ -143,6 +143,58 @@ public class ConsoleUI {
             System.out.println("Valor inválido. A atividade não foi adicionada.");
         }
     }
+
+    private void iniciarProcessoDeRevisao() {
+        System.out.println("\n======================================================");
+        System.out.println("            INICIANDO MODO DE AVALIAÇÃO");
+        System.out.println("======================================================");
+
+        List<AtividadeRequerida> atividades = requerimento.getAtividadesSubmetidas();
+
+        if (atividades.isEmpty()) {
+            System.out.println("Nenhuma atividade foi submetida. Nenhum parecer a ser gerado.");
+            return;
+        }
+
+        for (int i = 0; i < atividades.size(); i++) {
+            AtividadeRequerida atividadeAtual = atividades.get(i);
+            avaliarAtividadeIndividualmente(atividadeAtual, i + 1);
+        }
+
+        System.out.println("\nRevisão de todas as atividades concluída.");
+        finalizarEGerarParecer();
+    }
+    
+    private void avaliarAtividadeIndividualmente(AtividadeRequerida atividade, int numeroAtividade) {
+        System.out.printf("\n--- Avaliando Atividade %d ---\n", numeroAtividade);
+        System.out.printf("  Descrição:        %s\n", atividade.getAtividadeComplementar().getDescricao());
+        System.out.printf("  Valor Declarado:    %d (%s)\n", atividade.getHorasDeclaradas(), atividade.getAtividadeComplementar().getEstrategiaValidacao().getDescricaoRegra());
+        System.out.printf("  Validação Automática: %dh\n", atividade.getHorasValidadas());
+        System.out.printf("  Observação Automática: %s\n", atividade.getObservacao());
+        System.out.println("---------------------------------");
+        
+        System.out.println("Escolha uma ação:");
+        System.out.println("  1) Manter valor da validação automática");
+        System.out.println("  2) Alterar horas (aprovação parcial)");
+        System.out.println("  3) Recusar atividade (zerar horas)");
+        System.out.print("Sua opção: ");
+
+        int escolha = lerOpcao();
+        int novasHoras = 0;
+        String novaObservacao = "";
+
+        if (escolha == 2) {
+            System.out.print("Informe as novas horas validadas: ");
+            novasHoras = lerOpcao();
+            System.out.print("Informe a justificativa da alteração: ");
+            novaObservacao = scanner.nextLine();
+        } else if (escolha == 3) {
+             System.out.print("Informe o motivo da recusa: ");
+             novaObservacao = scanner.nextLine();
+        }
+        
+        revisaoService.revisar(atividade, novasHoras, novaObservacao, escolha);
+    }
     
     private void finalizarEGerarParecer() {
         System.out.println("\nGerando parecer final...");
@@ -155,12 +207,12 @@ public class ConsoleUI {
     private int lerOpcao() {
         try {
             int opcao = scanner.nextInt();
-            scanner.nextLine(); // Consome o "enter" que fica no buffer do scanner
+            scanner.nextLine();
             return opcao;
         } catch (InputMismatchException e) {
             System.out.println("Entrada inválida. Por favor, digite um número.");
-            scanner.nextLine(); // Limpa o buffer do scanner
-            return -1; // Retorna um valor inválido para o chamador tratar
+            scanner.nextLine();
+            return -1;
         }
     }
 

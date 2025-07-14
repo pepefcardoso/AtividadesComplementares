@@ -28,6 +28,12 @@ public class AtividadeRequerida {
     public String getObservacao() {
         return observacao;
     }
+    
+    public void setHorasValidadas(int horasValidadas) {
+        this.horasValidadas = horasValidadas;
+    }
+
+    public void setObservacao(String observacao) {
+        this.observacao = observacao;
+    }
 }
-    
-    
