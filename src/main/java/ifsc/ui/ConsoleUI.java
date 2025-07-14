@@ -1,7 +1,9 @@
 package ifsc.ui;
 
-import java.util.InputMismatchException;
+import java.util.HashMap; // Importar HashMap
+import java.util.InputMismatchException;     // Importar Map
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 
 import ifsc.factory.ModalidadeFactory;
@@ -13,6 +15,9 @@ import ifsc.model.TipoRevisao;
 import ifsc.service.AvaliacaoService;
 import ifsc.service.Parecer;
 import ifsc.service.RevisaoService;
+import ifsc.ui.command.FinalizarCommand;
+import ifsc.ui.command.MenuCommand;
+import ifsc.ui.command.ProcessarModalidadeCommand;
 
 public class ConsoleUI implements RevisaoUI {
 
@@ -22,11 +27,25 @@ public class ConsoleUI implements RevisaoUI {
     private final Parecer geradorParecer;
     private final RevisaoService revisaoService;
 
+    private final Map<Integer, MenuCommand> menuCommands;
+    private boolean executando = true;
+
     public ConsoleUI() {
         this.scanner = new Scanner(System.in);
         this.avaliacaoService = new AvaliacaoService();
         this.geradorParecer = new Parecer();
         this.revisaoService = new RevisaoService(this);
+
+        this.menuCommands = new HashMap<>();
+        inicializarComandos();
+    }
+
+    private void inicializarComandos() {
+        menuCommands.put(1, new ProcessarModalidadeCommand(this, 1));
+        menuCommands.put(2, new ProcessarModalidadeCommand(this, 2));
+        menuCommands.put(3, new ProcessarModalidadeCommand(this, 3));
+        menuCommands.put(4, new ProcessarModalidadeCommand(this, 4));
+        menuCommands.put(0, new FinalizarCommand(this));
     }
 
     public void iniciar() {
@@ -53,73 +72,27 @@ public class ConsoleUI implements RevisaoUI {
     }
 
     private void loopPrincipal() {
-        boolean executando = true;
-        while (executando) {
+        while (this.executando) {
             exibirMenuPrincipal();
             int escolha = lerOpcao();
 
-            switch (escolha) {
-                case 1:
-                case 2:
-                case 3:
-                case 4:
-                    processarModalidade(escolha);
-                    break;
-                case 0:
-                    revisaoService.iniciarRevisaoInterativa(this.requerimento);
-                    finalizarEGerarParecer();
-                    executando = false;
-                    break;
-                default:
-                    System.out.println("Opção inválida. Tente novamente.");
+            MenuCommand command = menuCommands.get(escolha);
+
+            if (command != null) {
+                command.execute();
+            } else {
+                System.out.println("Opção inválida. Tente novamente.");
             }
         }
     }
 
-    @Override
-    public void exibirDetalhesAtividade(AtividadeRequerida atividade, int numero) {
-        System.out.printf("\n--- Avaliando Atividade %d ---\n", numero);
-        System.out.printf("  Descrição:        %s\n", atividade.getAtividadeComplementar().getDescricao());
-        System.out.printf("  Valor Declarado:    %d (%s)\n", atividade.getHorasDeclaradas(), atividade.getAtividadeComplementar().getEstrategiaValidacao().getDescricaoRegra());
-        System.out.printf("  Validação Automática: %dh\n", atividade.getHorasValidadas());
-        System.out.printf("  Observação Automática: %s\n", atividade.getObservacao());
-        System.out.println("---------------------------------");
+    public void finalizarAvaliacao() {
+        revisaoService.iniciarRevisaoInterativa(this.requerimento);
+        finalizarEGerarParecer();
+        this.executando = false;
     }
 
-    @Override
-    public TipoRevisao perguntarAcaoRevisao() {
-        System.out.println("Escolha uma ação:");
-        System.out.println("  1) Manter valor da validação automática");
-        System.out.println("  2) Alterar horas (aprovação parcial)");
-        System.out.println("  3) Recusar atividade (zerar horas)");
-        System.out.print("Sua opção: ");
-        int escolhaInt = lerOpcao();
-        return TipoRevisao.fromValor(escolhaInt);
-    }
-
-    @Override
-    public int perguntarNovasHoras() {
-        System.out.print("Informe as novas horas validadas: ");
-        return lerOpcao();
-    }
-
-    @Override
-    public String perguntarJustificativa(String motivo) {
-        System.out.printf("Informe a %s: ", motivo);
-        return scanner.nextLine();
-    }
-
-    private void exibirMenuPrincipal() {
-        System.out.println("\n== MENU DE MODALIDADES ==");
-        System.out.println("1) Ensino");
-        System.out.println("2) Pesquisa e Inovação");
-        System.out.println("3) Extensão");
-        System.out.println("4) Complementação");
-        System.out.println("0) Finalizar e iniciar avaliação");
-        System.out.print("Escolha a modalidade (0-finalizar): ");
-    }
-
-    private void processarModalidade(int tipoModalidade) {
+    public void processarModalidade(int tipoModalidade) {
         Modalidade modalidade = ModalidadeFactory.criarModalidade(tipoModalidade);
         if (modalidade == null) {
             System.out.println("Modalidade não implementada.");
@@ -142,6 +115,16 @@ public class ConsoleUI implements RevisaoUI {
                 System.out.println("Opção de atividade inválida.");
             }
         }
+    }
+
+    private void exibirMenuPrincipal() {
+        System.out.println("\n== MENU DE MODALIDADES ==");
+        System.out.println("1) Ensino");
+        System.out.println("2) Pesquisa e Inovação");
+        System.out.println("3) Extensão");
+        System.out.println("4) Complementação");
+        System.out.println("0) Finalizar e iniciar avaliação");
+        System.out.print("Escolha a modalidade (0-finalizar): ");
     }
 
     private void exibirSubmenuAtividades(Modalidade modalidade) {
@@ -204,5 +187,38 @@ public class ConsoleUI implements RevisaoUI {
     private void fecharRecursos() {
         System.out.println("\nSistema finalizado.");
         scanner.close();
+    }
+
+    @Override
+    public void exibirDetalhesAtividade(AtividadeRequerida atividade, int numero) {
+        System.out.printf("\n--- Avaliando Atividade %d ---\n", numero);
+        System.out.printf("  Descrição:        %s\n", atividade.getAtividadeComplementar().getDescricao());
+        System.out.printf("  Valor Declarado:    %d (%s)\n", atividade.getHorasDeclaradas(), atividade.getAtividadeComplementar().getEstrategiaValidacao().getDescricaoRegra());
+        System.out.printf("  Validação Automática: %dh\n", atividade.getHorasValidadas());
+        System.out.printf("  Observação Automática: %s\n", atividade.getObservacao());
+        System.out.println("---------------------------------");
+    }
+
+    @Override
+    public TipoRevisao perguntarAcaoRevisao() {
+        System.out.println("Escolha uma ação:");
+        System.out.println("  1) Manter valor da validação automática");
+        System.out.println("  2) Alterar horas (aprovação parcial)");
+        System.out.println("  3) Recusar atividade (zerar horas)");
+        System.out.print("Sua opção: ");
+        int escolhaInt = lerOpcao();
+        return TipoRevisao.fromValor(escolhaInt);
+    }
+
+    @Override
+    public int perguntarNovasHoras() {
+        System.out.print("Informe as novas horas validadas: ");
+        return lerOpcao();
+    }
+
+    @Override
+    public String perguntarJustificativa(String motivo) {
+        System.out.printf("Informe a %s: ", motivo);
+        return scanner.nextLine();
     }
 }
