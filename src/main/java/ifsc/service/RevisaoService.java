@@ -54,7 +54,9 @@ public class RevisaoService {
     }
 
     private void revisar(AtividadeRequerida atividade, int novasHoras, String novaObservacao, TipoRevisao tipo) {
-        switch (tipo) {
+        if (null == tipo) {
+            System.out.println("-> Valor original mantido.");
+        } else switch (tipo) {
             case ALTERAR_HORAS:
                 atividade.setHorasValidadas(novasHoras);
                 atividade.setObservacao("Ajuste manual do avaliador: " + novaObservacao);
@@ -65,7 +67,6 @@ public class RevisaoService {
                 atividade.setObservacao("Recusado pelo avaliador: " + novaObservacao);
                 System.out.println("-> Atividade recusada com sucesso.");
                 break;
-            case MANTER_VALIDACAO:
             default:
                 System.out.println("-> Valor original mantido.");
                 break;
